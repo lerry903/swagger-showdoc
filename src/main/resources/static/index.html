@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ShowDoc文档生成</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="SHORTCUT ICON" href="image/2.ico"/>
+    <link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/jquery.jsonview.css" />
+    <script src="//cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+    <script src="//cdn.bootcss.com/popper.js/1.12.5/umd/popper.min.js"></script>
+    <script src="//cdn.bootcss.com/bootstrap/4.0.0-beta/js/bootstrap.min.js"></script>
+    <script src="//cdn.bootcss.com/vue/2.5.8/vue.min.js"></script>
+    <script type="text/javascript" src="js/jquery.jsonview.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.0"></script>
+
+    <style type="text/css">
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            margin: 0;
+        }
+        #main {
+            height: 1800px;
+            padding-top: 90px;
+            text-align: center;
+        }
+        #fullbg {
+            background-color: Gray;
+            left: 0px;
+            opacity: 0.5;
+            position: absolute;
+            top: 0px;
+            z-index: 3;
+            filter: alpha(opacity=50); /* IE6 */
+            -moz-opacity: 0.5; /* Mozilla */
+            -khtml-opacity: 0.5; /* Safari */
+        }
+        #dialog {
+            background-color: #FFF;
+            border: 1px solid #888;
+            display: none;
+            height: 40px;
+            left: 50%;
+            margin: -100px 0 0 -100px;
+            padding: 12px;
+            position: fixed !important; /* 浮动对话框 */
+            position: absolute;
+            top: 50%;
+            width: 200px;
+            z-index: 5;
+        }
+        #dialog p {
+            margin: 0 0 12px;
+        }
+        #dialog p.close {
+            text-align: right;
+        }
+        #holder {
+            　　border: 10px dashed #ccc;
+            　　width: 300px;
+            　　min-height: 300px;
+            　　margin: 20px auto;
+        }
+        #holder.hover {
+            　　border: 10px dashed #0c0;
+        }
+    </style>
+
+</head>
+<body style="background-color: gainsboro">
+<div id="result" name="result"></div>
+<!--<div id="main"><a onclick="showBg();" rel="nofollow" href="#" rel="external nofollow" rel="external nofollow" >点击这里看 jQuery 遮罩层效果.</a></div>-->
+<div id="fullbg"></div>
+<div id="dialog" >
+    同步中,请等待....
+    <!--<p class="close"><a onclick="closeBg();" rel="nofollow" href="#" rel="external nofollow" rel="external nofollow" >关闭</a></p>-->
+</div>
+<div class="container" id="vueApp">
+    <div class="row mx-auto w-75" style="margin-top: 20px">
+        <div class="col-12 text-center">
+            <h3>文档生成器</h3>
+        </div>
+    </div>
+    <div class="row mx-auto w-75">
+        <div class="col-6">
+            <div class="btn-group">
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="input-group">
+                <p>showDoc地址：</p>
+                <input type="text" id="showDoc_url" class="form-control input-group-sm" placeholder="请输入showDoc地址"/><br/>
+            </div>
+            <div class="input-group">
+                <p>showDoc api_key：</p>
+                <input type="text" id="api_key" class="form-control input-group-sm" placeholder="请输入api_key"/><br/>
+            </div>
+            <div class="input-group">
+                <p>showDoc api_token：</p>
+                <input type="text" id="api_token" class="form-control input-group-sm" placeholder="请输入api_token"/>
+            </div>
+            <div class="input-group">
+                <p>SwaggerUi地址：</p>
+                <input type="text" id="swaggerUiUrl" class="form-control input-group-sm" placeholder="请输入SwaggerUiUrl"/>
+            </div>
+            <div class="input-group">
+
+            </div>
+            <button type="button" class="btn btn-outline-info btn-sm" id="docBt" @click="toShowDoc">开始文档同步</button>
+            <a href="" target="view_window"><h3>文档阅览</h3></a>
+        </div>
+    </div>
+    <div id="holder" style="border: 10px dashed #ccc; min-height: 150px; margin: 20px auto; text-align:center;"><h3 id="inn">拖拽上传接口文件，当前支持swagger格式的json文件</h3></div>
+    <div class="row mx-auto w-75" style="height: 15px"></div>
+
+
+
+
+    <div class="row mx-auto w-75" style="height: 15px"></div>
+    <div class="resizable-textarea">
+    <h2>接口数据</h2>
+    <button id="collapse-btn" class="btn btn-outline-info btn-sm">折叠</button>
+    <button id="expand-btn" class="btn btn-outline-info btn-sm">展开</button>
+    <button id="toggle-btn" class="btn btn-outline-info btn-sm">切换</button>
+    <button id="toggle-level1-btn" class="btn btn-outline-info btn-sm">1级</button>
+    <button id="toggle-level2-btn" class="btn btn-outline-info btn-sm">2级</button>
+    <div class="Canvas well resizable" style="height:300px;overflow:auto;margin-bottom:0px;">
+        <div id="json"></div>
+    </div>
+
+    </div>
+</div>
+</body>
+</html>
+<script type="text/javascript">
+
+    var files1;
+
+    $(function() {
+
+        // 检查浏览器是否支持拖放上传。
+        if('draggable' in document.createElement('span')){
+            var holder = document.getElementById('holder');
+            holder.ondragover = function () { this.className = 'hover'; return false; };
+            holder.ondragend = function () { this.className = ''; return false; };
+            holder.ondrop = function (event) {
+
+                event.preventDefault();
+                this.className = '';
+                var files = event.dataTransfer.files;
+                if(null != files[0]){
+                    $("#inn").text(files[0].name);
+                }
+                var fileReader = new FileReader();
+                fileReader.readAsText(files[0]);
+                files1 = files[0];
+                fileReader.onload=function(){
+                    //显示文件
+                    $("#json").JSONView(this.result);
+
+                    $("#json-collapsed").JSONView(this.result, { collapsed: true, nl2br: true, recursive_collapser: true });
+
+                    $('#collapse-btn').on('click', function() {
+                        $('#json').JSONView('collapse');
+                    });
+
+                    $('#expand-btn').on('click', function() {
+                        $('#json').JSONView('expand');
+                    });
+
+                    $('#toggle-btn').on('click', function() {
+                        $('#json').JSONView('toggle');
+                    });
+
+                    $('#toggle-level1-btn').on('click', function() {
+                        $('#json').JSONView('toggle', 1);
+                    });
+
+                    $('#toggle-level2-btn').on('click', function() {
+                        $('#json').JSONView('toggle', 2);
+                    });
+                }
+
+            };
+        }
+
+    });
+
+
+    new Vue({
+        el: "#vueApp",
+        data: {},
+        methods: {
+            addRow: function () {
+                this.facilities.push(this.newRow);
+                this.newRow = {};
+            },
+            saveRows:function () {//保存表格数据
+
+            },
+            delRows:function () {
+                if (this.checkedRows.length <= 0){
+                    alert("您未选择需要删除的数据");
+                    return false;
+                }
+                if (!confirm("您确定要删除选择的数据吗？")){
+                    return false;
+                }
+                for(var i=0;i<this.checkedRows.length;i++){
+                    var checkedRowIndex = this.checkedRows[i];
+                    this.facilities = $.grep(this.facilities,function (facility,j) {
+                        return j != checkedRowIndex;
+                    });
+                }
+                this.checkedRows = [];
+            },
+            toShowDoc:function () {
+                var showDoc_url = $("#showDoc_url").val();
+                var api_key = $("#api_key").val();
+                var api_token = $("#api_token").val();
+                var swaggerUiUrl = $("#swaggerUiUrl").val();
+
+
+                if(showDoc_url == null || showDoc_url === ""){
+                    alert("请输入showDoc地址");
+                    return false;
+                }
+                if(api_key == null|| api_key === "" ){
+                    alert("请输入api_key");
+                    return false;
+                }
+                if(api_token == null|| api_token === "" ){
+                    alert("请输入api_token");
+                    return false;
+                }
+                if(swaggerUiUrl == null|| swaggerUiUrl === "" ){
+                    alert("请输入swaggerUi地址");
+                    return false;
+                }
+
+                if(confirm("确认开始?")){
+                    $("#dialog").text("同步中,请等待....");
+                    //文档同步开始
+                    showBg();
+                    var formData = new FormData();
+                    formData.append("files",files1);
+                    var url = "/updateShowDoc/"+showDoc_url+"/"+api_key+"/"+api_token+"/"+swaggerUiUrl;
+                    this.$http.post(url,formData,{headers: { 'Content-Type': 'multipart/form-data' }}).then(response => {
+                        var p = "<p class=\"close\"><a onclick=\"closeBg();\" rel=\"nofollow\" href=\"#\" rel=\"external nofollow\" rel=\"external nofollow\" >关闭</a></p>"
+                        $("#dialog").text(response.bodyText);
+                        $("#dialog").append(p);
+                        //closeBg();
+                    }, response => {
+                        alert(response.bodyText);
+                        closeBg();
+                    });
+                }
+
+            }
+        }
+    });
+
+
+    //显示灰色 jQuery 遮罩层
+    function showBg() {
+        var bh = $("body").height();
+        var bw = $("body").width();
+        $("#fullbg").css({
+            height:bh,
+            width:bw,
+            display:"block"
+        });
+        $("#dialog").show();
+    }
+    //关闭灰色 jQuery 遮罩
+    function closeBg() {
+        $("#fullbg,#dialog").hide();
+    }
+
+</script>
